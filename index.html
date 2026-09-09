@@ -101,6 +101,36 @@
       return <span>{Math.round(displayValue)}</span>;
     };
 
+    const FormattedInput = ({ value, onChange, className, style }) => {
+      const [isFocused, setIsFocused] = useState(false);
+      const [localValue, setLocalValue] = useState(value.toLocaleString('de-DE'));
+
+      useEffect(() => {
+        if (!isFocused) setLocalValue(value.toLocaleString('de-DE'));
+      }, [value, isFocused]);
+
+      const handleChange = (e) => {
+        const val = e.target.value;
+        setLocalValue(val);
+        const clean = val.replace(/\./g, '').replace(/,/g, '.');
+        const parsed = Number(clean);
+        if (!isNaN(parsed)) onChange(parsed);
+      };
+
+      return (
+        <input
+          type="text"
+          inputMode="numeric"
+          value={localValue}
+          onChange={handleChange}
+          onFocus={() => { setIsFocused(true); setLocalValue(value.toString()); }}
+          onBlur={() => { setIsFocused(false); setLocalValue(value.toLocaleString('de-DE')); }}
+          className={className}
+          style={style}
+        />
+      );
+    };
+
     const SavingsMatrix = ({ startKapital, nettoSparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, wochen, steuern }) => {
       const addedYear = startKapital * (ansparRendite/100) + nettoSparrate * 12;
       const addedMonth = startKapital * (ansparRendite/100/12) + nettoSparrate;
@@ -439,15 +469,15 @@
                 </h2>
                 <div className="space-y-6">
                   <div>
-                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Dein aktuell investiertes Kapital">Startkapital <InfoIcon /></span><div className="flex items-center text-emerald-400 font-bold bg-gray-900 rounded px-1"><input type="number" value={startKapital} onChange={(e) => setStartKapital(Number(e.target.value))} className="input-ghost" /><span>€</span></div></label>
+                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Dein aktuell investiertes Kapital">Startkapital <InfoIcon /></span><div className="flex items-center text-emerald-400 font-bold bg-gray-900 rounded px-1"><FormattedInput value={startKapital} onChange={setStartKapital} className="input-ghost" /><span>€</span></div></label>
                     <input type="range" min="0" max="500000" step="1000" value={startKapital} onChange={(e) => setStartKapital(Number(e.target.value))} className="w-full accent-emerald-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                   </div>
                   <div>
-                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Wie viel du jeden Monat zusätzlich investierst">Mtl. Sparrate <InfoIcon /></span><div className="flex items-center text-emerald-400 font-bold bg-gray-900 rounded px-1"><input type="number" value={sparrate} onChange={(e) => setSparrate(Number(e.target.value))} className="input-ghost" /><span>€</span></div></label>
+                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Wie viel du jeden Monat zusätzlich investierst">Mtl. Sparrate <InfoIcon /></span><div className="flex items-center text-emerald-400 font-bold bg-gray-900 rounded px-1"><FormattedInput value={sparrate} onChange={setSparrate} className="input-ghost" /><span>€</span></div></label>
                     <input type="range" min="0" max="5000" step="50" value={sparrate} onChange={(e) => setSparrate(Number(e.target.value))} className="w-full accent-emerald-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                   </div>
                   <div>
-                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Geld, das du aktuell schon monatlich entnimmst (reduziert die Netto-Sparrate)">Mtl. Entnahme <InfoIcon /></span><div className="flex items-center text-red-400 font-bold bg-gray-900 rounded px-1"><input type="number" value={mtlEntnahme} onChange={(e) => setMtlEntnahme(Number(e.target.value))} className="input-ghost focus:border-red-400 text-red-400" /><span>€</span></div></label>
+                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Geld, das du aktuell schon monatlich entnimmst (reduziert die Netto-Sparrate)">Mtl. Entnahme <InfoIcon /></span><div className="flex items-center text-red-400 font-bold bg-gray-900 rounded px-1"><FormattedInput value={mtlEntnahme} onChange={setMtlEntnahme} className="input-ghost focus:border-red-400 text-red-400" /><span>€</span></div></label>
                     <input type="range" min="0" max="5000" step="50" value={mtlEntnahme} onChange={(e) => setMtlEntnahme(Number(e.target.value))} className="w-full accent-red-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                   </div>
                   <div className="border-t border-gray-700 pt-4 mt-2">
@@ -481,7 +511,7 @@
                   <div>
                     <label className="flex justify-between text-sm font-medium text-gray-300 mb-1 group"><span className="cursor-help" title="Dein Netto-Jahreslohn nach Steuern">Netto-Jahreslohn <InfoIcon /></span></label>
                     <div className="relative">
-                      <input type="number" min="1" value={jahreslohn} onChange={(e) => setJahreslohn(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" />
+                      <FormattedInput value={jahreslohn} onChange={setJahreslohn} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" />
                       <span className="absolute right-3 top-2 text-gray-400">€</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">Das entspricht bei {aktuelleStunden}h ca. {berechneterStundenlohn.toFixed(2)} € pro Stunde.</p>
