@@ -302,9 +302,12 @@
       const [sparrate, setSparrate] = useState(1000);
       const [ansparRendite, setAnsparRendite] = useState(6.0);
       const [entnahmeRendite, setEntnahmeRendite] = useState(3.5);
-      const [jahreslohn, setJahreslohn] = useState(40000);
-      const [urlaubstage, setUrlaubstage] = useState(30);
-      const [steuern, setSteuern] = useState(false);
+      
+      const [jahreslohn, setJahreslohn] = useState(39000);
+      const [urlaubstage, setUrlaubstage] = useState(32);
+      const [steuern, setSteuern] = useState(true);
+      
+      const [alter, setAlter] = useState(25);
       const [aktuelleStunden, setAktuelleStunden] = useState(40);
       const [zielStunden, setZielStunden] = useState(20);
 
@@ -375,7 +378,7 @@
           const boostSeconds = boostHours * 3600;
           
           data.push({
-            name: `Jahr ${year}`,
+            name: `Alter ${alter + year}`,
             Basis: parseFloat(basisHours.toFixed(2)),
             Sparplan: parseFloat(sparHours.toFixed(2)),
             Gesamt: parseFloat((basisHours + sparHours).toFixed(2)),
@@ -385,7 +388,7 @@
           });
         }
         return data;
-      }, [startKapital, sparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, steuern]);
+      }, [startKapital, sparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, steuern, alter]);
 
       const zielErsparnis = Math.max(0, aktuelleStunden - zielStunden);
       const exactMilestoneYear = useMemo(() => {
@@ -453,6 +456,13 @@
                 </h2>
                 <div className="space-y-5">
                   <div>
+                    <label className="flex justify-between text-sm font-medium text-gray-300 mb-1 group"><span className="cursor-help" title="Dein aktuelles Lebensalter">Aktuelles Alter <InfoIcon /></span></label>
+                    <div className="relative">
+                      <input type="number" min="0" max="100" value={alter} onChange={(e) => setAlter(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" />
+                      <span className="absolute right-3 top-2 text-gray-400">Jahre</span>
+                    </div>
+                  </div>
+                  <div>
                     <label className="flex justify-between text-sm font-medium text-gray-300 mb-1 group"><span className="cursor-help" title="Dein Netto-Jahreslohn nach Steuern">Netto-Jahreslohn <InfoIcon /></span></label>
                     <div className="relative">
                       <input type="number" min="1" value={jahreslohn} onChange={(e) => setJahreslohn(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" />
@@ -488,9 +498,9 @@
                 </div>
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-purple-500/20 relative overflow-hidden group hover:border-purple-500/50 transition-colors flex flex-col justify-between">
                   <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all"></div>
-                  <h3 className="text-sm text-gray-400 font-semibold mb-2 flex items-center"><svg className="w-4 h-4 mr-1 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>Ziel ({zielStunden}h) in</h3>
-                  <div className="text-2xl font-bold text-white mb-1">{exactMilestoneYear === 0 ? (<span className="text-purple-400 text-xl">Jetzt!</span>) : exactMilestoneYear > 0 ? (<React.Fragment><NumberAnimation value={exactMilestoneYear} /> <span className="text-lg text-purple-400">Jahren</span></React.Fragment>) : (<span className="text-purple-400 text-xl">Nie</span>)}</div>
-                  <p className="text-xs text-gray-500 mt-2">In dieser Zeit hast du genug passives Einkommen, um <b>{zielErsparnis}h pro Woche</b> weniger zu arbeiten.</p>
+                  <h3 className="text-sm text-gray-400 font-semibold mb-2 flex items-center"><svg className="w-4 h-4 mr-1 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>Ziel ({zielStunden}h) mit Alter</h3>
+                  <div className="text-2xl font-bold text-white mb-1">{exactMilestoneYear === 0 ? (<span className="text-purple-400 text-xl">Jetzt!</span>) : exactMilestoneYear > 0 ? (<React.Fragment><NumberAnimation value={alter + exactMilestoneYear} /> <span className="text-lg text-purple-400">Jahren</span></React.Fragment>) : (<span className="text-purple-400 text-xl">Nie</span>)}</div>
+                  <p className="text-xs text-gray-500 mt-2">In {exactMilestoneYear > 0 ? exactMilestoneYear : 0} Jahren hast du genug passives Einkommen, um <b>{zielErsparnis}h pro Woche</b> weniger zu arbeiten.</p>
                 </div>
               </div>
 
