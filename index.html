@@ -579,7 +579,7 @@
                   <div className="text-2xl font-bold text-white mb-1">{exactMilestoneYear === 0 ? (<span className="text-purple-400 text-xl">Jetzt!</span>) : exactMilestoneYear > 0 ? (<React.Fragment><NumberAnimation value={alter + exactMilestoneYear} /> <span className="text-lg text-purple-400">Jahren</span></React.Fragment>) : (<span className="text-purple-400 text-xl">Nie</span>)}</div>
                   <p className="text-xs text-gray-500 mt-2">In {exactMilestoneYear > 0 ? exactMilestoneYear : 0} Jahren kann dein Depot die fehlenden <b>{finanziellesZielErsparnis}h</b> zur Vollzeit komplett finanzieren.</p>
                   {requiredCapital > 0 && exactMilestoneYear !== 0 && (
-                    <p className="text-xs text-purple-400 mt-1 font-semibold">Benötigtes Ziel-Vermögen: ~{Math.round(requiredCapital).toLocaleString('de-DE')} €</p>
+                    <p className="text-xs text-purple-400 mt-1 font-semibold">Benötigtes Vermögen: ~{Math.round(requiredCapital).toLocaleString('de-DE')} €</p>
                   )}
                 </div>
               </div>
