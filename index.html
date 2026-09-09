@@ -101,13 +101,14 @@
       return <span>{Math.round(displayValue)}</span>;
     };
 
-    const SavingsMatrix = ({ startKapital, sparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, wochen, steuern }) => {
-      const addedYear = startKapital * (ansparRendite/100) + sparrate * 12;
-      const addedMonth = startKapital * (ansparRendite/100/12) + sparrate;
-      const addedWeek = startKapital * (ansparRendite/100/52) + (sparrate * 12 / 52);
-      const addedDay = startKapital * (ansparRendite/100/260) + (sparrate * 12 / 260);
+    const SavingsMatrix = ({ startKapital, nettoSparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, wochen, steuern }) => {
+      const addedYear = startKapital * (ansparRendite/100) + nettoSparrate * 12;
+      const addedMonth = startKapital * (ansparRendite/100/12) + nettoSparrate;
+      const addedWeek = startKapital * (ansparRendite/100/52) + (nettoSparrate * 12 / 52);
+      const addedDay = startKapital * (ansparRendite/100/260) + (nettoSparrate * 12 / 260);
       
       const getMatrix = (addedCap) => {
+        if (addedCap <= 0) return ["0s", "0s", "0s", "0s"];
         let additionalAnnualInt = addedCap * (entnahmeRendite/100);
         if (steuern) additionalAnnualInt *= (1 - 0.26375);
         
@@ -142,13 +143,15 @@
             <svg className="w-5 h-5 mr-2 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
             Was dir dein Zuwachs exakt bringt
           </h3>
-          <p className="text-sm text-gray-400 mb-6">Für jeden Zeitraum siehst du, wie viel Kapital dazukommt (Zinsen + Sparrate) und wie viel Arbeitszeit dir dieses neue Kapital ab sofort <b>dauerhaft</b> erspart.</p>
+          <p className="text-sm text-gray-400 mb-6">Für jeden Zeitraum siehst du, wie viel Kapital (netto) dazukommt und wie viel Arbeitszeit dir dieses neue Kapital ab sofort <b>dauerhaft</b> erspart.</p>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {data.map((item, idx) => (
               <div key={idx} className="bg-gray-900/50 rounded-xl p-4 border border-gray-700 hover:border-emerald-500/30 transition-colors">
                 <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">{item.title} angespart</div>
-                <div className="text-xl font-bold text-emerald-400 mb-4">+{Math.round(item.val).toLocaleString('de-DE')} €</div>
+                <div className={`text-xl font-bold mb-4 ${item.val >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {item.val >= 0 ? '+' : ''}{Math.round(item.val).toLocaleString('de-DE')} €
+                </div>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between items-center border-b border-gray-800 pb-1">
@@ -300,6 +303,7 @@
     const App = () => {
       const [startKapital, setStartKapital] = useState(65000);
       const [sparrate, setSparrate] = useState(1000);
+      const [mtlEntnahme, setMtlEntnahme] = useState(0);
       const [ansparRendite, setAnsparRendite] = useState(6.0);
       const [entnahmeRendite, setEntnahmeRendite] = useState(3.5);
       
@@ -308,12 +312,15 @@
       const [steuern, setSteuern] = useState(true);
       
       const [alter, setAlter] = useState(25);
-      const [aktuelleStunden, setAktuelleStunden] = useState(40);
+      const [vollzeitStunden, setVollzeitStunden] = useState(40);
+      const [aktuelleStunden, setAktuelleStunden] = useState(38);
       const [zielStunden, setZielStunden] = useState(20);
 
       const maxJahre = 25;
       const wochen = Math.max(1, (260 - urlaubstage - 10) / 5);
       const berechneterStundenlohn = jahreslohn / (wochen * aktuelleStunden);
+
+      const nettoSparrate = sparrate - mtlEntnahme;
 
       const calculateInterest = (kapital, r, t) => {
         let interest = kapital * (r / 100);
@@ -331,8 +338,13 @@
       };
 
       const currentInterest = calculateInterest(startKapital, entnahmeRendite, steuern);
+      const currentMonthlyPayout = currentInterest / 12;
       const currentDecimalTime = getWeeklyTime(currentInterest);
       const currentFormattedTime = decimalToTime(currentDecimalTime);
+
+      const selbstReduziert = Math.max(0, vollzeitStunden - aktuelleStunden);
+      const puffer = currentDecimalTime - selbstReduziert;
+      const pufferFormatted = decimalToTime(Math.abs(puffer));
 
       const chartData = useMemo(() => {
         const data = [];
@@ -342,7 +354,7 @@
         for (let year = 1; year <= maxJahre; year++) {
           for (let m = 0; m < 12; m++) {
             currentBasis += currentBasis * (ansparRendite / 100 / 12);
-            currentSpar += currentSpar * (ansparRendite / 100 / 12) + sparrate;
+            currentSpar += currentSpar * (ansparRendite / 100 / 12) + nettoSparrate;
           }
           
           const nextBasisInt = currentBasis * (entnahmeRendite / 100);
@@ -358,8 +370,8 @@
           const netBasisInt = nextBasisInt * (1 - taxRatio);
           const netSparInt = nextSparInt * (1 - taxRatio);
           
-          const basisHours = getWeeklyTime(netBasisInt);
-          const sparHours = getWeeklyTime(netSparInt);
+          const basisHours = Math.max(0, getWeeklyTime(netBasisInt));
+          const sparHours = Math.max(0, getWeeklyTime(netSparInt));
           
           const totalKapital = currentBasis + currentSpar;
           
@@ -371,10 +383,10 @@
           const mPayout = yearlyPayout / 12;
           
           const wRate = ansparRendite / 100 / 52;
-          const wSpar = (sparrate * 12) / 52;
+          const wSpar = (nettoSparrate * 12) / 52;
           const weeklyAdded = (totalKapital * wRate) + wSpar;
           const additionalInt = weeklyAdded * (entnahmeRendite / 100);
-          const boostHours = getWeeklyTime(additionalInt);
+          const boostHours = Math.max(0, getWeeklyTime(additionalInt));
           const boostSeconds = boostHours * 3600;
           
           data.push({
@@ -388,14 +400,14 @@
           });
         }
         return data;
-      }, [startKapital, sparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, steuern, alter]);
+      }, [startKapital, nettoSparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, steuern, alter]);
 
-      const zielErsparnis = Math.max(0, aktuelleStunden - zielStunden);
+      const finanziellesZielErsparnis = Math.max(0, vollzeitStunden - zielStunden);
       const exactMilestoneYear = useMemo(() => {
-        if (zielErsparnis <= 0) return 0;
-        if (currentDecimalTime >= zielErsparnis) return 0;
-        if (sparrate === 0 && startKapital === 0) return -1;
-        if (sparrate === 0 && ansparRendite === 0 && entnahmeRendite === 0) return -1;
+        if (finanziellesZielErsparnis <= 0) return 0;
+        if (currentDecimalTime >= finanziellesZielErsparnis) return 0;
+        if (nettoSparrate === 0 && startKapital === 0) return -1;
+        if (nettoSparrate <= 0 && ansparRendite === 0 && entnahmeRendite === 0) return -1;
         
         let kBasis = startKapital;
         let kSpar = 0;
@@ -404,12 +416,12 @@
           const totalInt = kBasis * (entnahmeRendite / 100) + kSpar * (entnahmeRendite / 100);
           let netTotalInt = totalInt;
           if (steuern) netTotalInt -= Math.max(0, totalInt - 1000) * 0.26375;
-          if (getWeeklyTime(netTotalInt) >= zielErsparnis) return year;
+          if (getWeeklyTime(netTotalInt) >= finanziellesZielErsparnis) return year;
           year++;
-          for (let m = 0; m < 12; m++) { kBasis += kBasis * (ansparRendite / 100 / 12); kSpar += kSpar * (ansparRendite / 100 / 12) + sparrate; }
+          for (let m = 0; m < 12; m++) { kBasis += kBasis * (ansparRendite / 100 / 12); kSpar += kSpar * (ansparRendite / 100 / 12) + nettoSparrate; }
         }
         return -1;
-      }, [startKapital, sparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, zielErsparnis, steuern, currentDecimalTime]);
+      }, [startKapital, nettoSparrate, ansparRendite, entnahmeRendite, jahreslohn, aktuelleStunden, finanziellesZielErsparnis, steuern, currentDecimalTime]);
 
       return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 pb-16">
@@ -435,10 +447,14 @@
                     <input type="range" min="0" max="5000" step="50" value={sparrate} onChange={(e) => setSparrate(Number(e.target.value))} className="w-full accent-emerald-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                   </div>
                   <div>
+                    <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Geld, das du aktuell schon monatlich entnimmst (reduziert die Netto-Sparrate)">Mtl. Entnahme <InfoIcon /></span><div className="flex items-center text-red-400 font-bold bg-gray-900 rounded px-1"><input type="number" value={mtlEntnahme} onChange={(e) => setMtlEntnahme(Number(e.target.value))} className="input-ghost focus:border-red-400 text-red-400" /><span>€</span></div></label>
+                    <input type="range" min="0" max="5000" step="50" value={mtlEntnahme} onChange={(e) => setMtlEntnahme(Number(e.target.value))} className="w-full accent-red-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+                  </div>
+                  <div className="border-t border-gray-700 pt-4 mt-2">
                     <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Wachstumsrendite des Depots (z.B. ETF) pro Jahr">Anspar-Rendite <InfoIcon /></span><div className="flex items-center text-emerald-400 font-bold bg-gray-900 rounded px-1"><input type="number" step="0.1" value={ansparRendite} onChange={(e) => setAnsparRendite(Number(e.target.value))} className="input-ghost" style={{width: '60px'}} /><span>%</span></div></label>
                     <input type="range" min="1" max="15" step="0.1" value={ansparRendite} onChange={(e) => setAnsparRendite(Number(e.target.value))} className="w-full accent-emerald-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                   </div>
-                  <div className="border-t border-gray-700 pt-4 mt-2">
+                  <div>
                     <label className="flex justify-between items-center text-sm font-medium text-gray-300 mb-2 group"><span className="cursor-help" title="Sichere Entnahmerate oder Dividendenrendite (woraus sich die Freizeit berechnet)">Entnahme-Rendite <InfoIcon /></span><div className="flex items-center text-neonBlue font-bold bg-gray-900 rounded px-1"><input type="number" step="0.1" value={entnahmeRendite} onChange={(e) => setEntnahmeRendite(Number(e.target.value))} className="input-ghost focus:border-neonBlue text-neonBlue" style={{width: '60px'}} /><span>%</span></div></label>
                     <input type="range" min="1" max="10" step="0.1" value={entnahmeRendite} onChange={(e) => setEntnahmeRendite(Number(e.target.value))} className="w-full accent-neonBlue h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
                   </div>
@@ -478,10 +494,11 @@
                     </div>
                   </div>
                   <div className="pt-2 border-t border-gray-700">
-                    <label className="flex justify-between text-sm font-medium text-gray-300 mb-3 mt-2 group"><span className="text-neonBlue">Dein Ziel (Teilzeit)</span></label>
+                    <label className="flex justify-between text-sm font-medium text-gray-300 mb-3 mt-2 group"><span className="text-neonBlue">Deine Stundenverteilung</span></label>
                     <div className="flex gap-2">
-                      <div className="w-1/2"><span className="text-xs text-gray-400 mb-1 block">Aktuell</span><div className="relative"><input type="number" min="1" value={aktuelleStunden} onChange={(e) => setAktuelleStunden(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-2 text-white font-bold focus:outline-none focus:border-neonBlue focus:ring-1 focus:ring-neonBlue" /><span className="absolute right-2 top-2 text-gray-400 text-sm">h/Wo</span></div></div>
-                      <div className="w-1/2"><span className="text-xs text-gray-400 mb-1 block">Wunsch</span><div className="relative"><input type="number" min="0" value={zielStunden} onChange={(e) => setZielStunden(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-2 text-white font-bold focus:outline-none focus:border-neonBlue focus:ring-1 focus:ring-neonBlue" /><span className="absolute right-2 top-2 text-gray-400 text-sm">h/Wo</span></div></div>
+                      <div className="w-1/3"><span className="text-xs text-gray-400 mb-1 block">Vollzeit</span><div className="relative"><input type="number" min="1" value={vollzeitStunden} onChange={(e) => setVollzeitStunden(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-2 text-white font-bold focus:outline-none focus:border-neonBlue focus:ring-1 focus:ring-neonBlue" /><span className="absolute right-2 top-2 text-gray-400 text-sm">h</span></div></div>
+                      <div className="w-1/3"><span className="text-xs text-gray-400 mb-1 block">Aktuell</span><div className="relative"><input type="number" min="1" value={aktuelleStunden} onChange={(e) => setAktuelleStunden(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-2 text-white font-bold focus:outline-none focus:border-neonBlue focus:ring-1 focus:ring-neonBlue" /><span className="absolute right-2 top-2 text-gray-400 text-sm">h</span></div></div>
+                      <div className="w-1/3"><span className="text-xs text-gray-400 mb-1 block">Wunsch</span><div className="relative"><input type="number" min="0" value={zielStunden} onChange={(e) => setZielStunden(Number(e.target.value))} className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-2 text-white font-bold focus:outline-none focus:border-neonBlue focus:ring-1 focus:ring-neonBlue" /><span className="absolute right-2 top-2 text-gray-400 text-sm">h</span></div></div>
                     </div>
                   </div>
                 </div>
@@ -489,22 +506,40 @@
             </div>
 
             <div className="lg:col-span-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-emerald-500/20 relative overflow-hidden group hover:border-emerald-500/50 transition-colors flex flex-col justify-between">
                   <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all"></div>
-                  <h3 className="text-sm text-gray-400 font-semibold mb-2 flex items-center"><svg className="w-4 h-4 mr-1 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Bereits freigekauft</h3>
+                  <h3 className="text-sm text-gray-400 font-semibold mb-2 flex items-center"><svg className="w-4 h-4 mr-1 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Durch Depot finanziert</h3>
                   <div className="text-2xl font-bold text-white mb-1"><NumberAnimation value={currentFormattedTime.hours} /> <span className="text-lg text-emerald-400">h</span>{' '}<NumberAnimation value={currentFormattedTime.minutes} /> <span className="text-lg text-emerald-400">m</span>{' '}<NumberAnimation value={currentFormattedTime.seconds} /> <span className="text-lg text-emerald-400">s</span></div>
-                  <p className="text-xs text-gray-500 mt-2">Diese Zeit sparst du dir aktuell <b>pro Woche</b> an Arbeitszeit.</p>
+                  <p className="text-xs text-gray-400 mt-2">Diese wöchentliche Freizeit kannst du dir leisten, ohne auf Geld zu verzichten.</p>
+                  <p className="text-xs text-emerald-500 mt-1 font-semibold">(entspricht ca. {currentMonthlyPayout.toLocaleString('de-DE', {maximumFractionDigits: 0})} € / Monat)</p>
                 </div>
+
+                <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-blue-500/20 relative overflow-hidden group hover:border-blue-500/50 transition-colors flex flex-col justify-between">
+                  <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all"></div>
+                  <h3 className="text-sm text-gray-400 font-semibold mb-2 flex items-center"><svg className="w-4 h-4 mr-1 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Lebensstil-Bilanz</h3>
+                  <div className="text-xl font-bold text-white mb-1">
+                    {selbstReduziert === 0 ? "Noch Vollzeit" : `${selbstReduziert}h selbst reduziert`}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {selbstReduziert === 0 
+                      ? `Du arbeitest voll (${vollzeitStunden}h). Dein Depot erlaubt dir eine schmerzfreie Reduktion auf ${(vollzeitStunden - currentDecimalTime).toFixed(1)}h.` 
+                      : puffer >= 0 
+                        ? `Dein Depot deckt deine Reduktion komplett ab! Du hast sogar noch einen finanzierten Puffer von ${pufferFormatted.hours}h ${pufferFormatted.minutes}m übrig.` 
+                        : `Dein Depot finanziert aktuell ${currentFormattedTime.hours}h ${currentFormattedTime.minutes}m davon. Du finanzierst also ca. ${pufferFormatted.hours}h ${pufferFormatted.minutes}m durch eigenen Lohnverzicht.`}
+                  </p>
+                </div>
+
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-purple-500/20 relative overflow-hidden group hover:border-purple-500/50 transition-colors flex flex-col justify-between">
                   <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition-all"></div>
                   <h3 className="text-sm text-gray-400 font-semibold mb-2 flex items-center"><svg className="w-4 h-4 mr-1 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>Ziel ({zielStunden}h) mit Alter</h3>
                   <div className="text-2xl font-bold text-white mb-1">{exactMilestoneYear === 0 ? (<span className="text-purple-400 text-xl">Jetzt!</span>) : exactMilestoneYear > 0 ? (<React.Fragment><NumberAnimation value={alter + exactMilestoneYear} /> <span className="text-lg text-purple-400">Jahren</span></React.Fragment>) : (<span className="text-purple-400 text-xl">Nie</span>)}</div>
-                  <p className="text-xs text-gray-500 mt-2">In {exactMilestoneYear > 0 ? exactMilestoneYear : 0} Jahren hast du genug passives Einkommen, um <b>{zielErsparnis}h pro Woche</b> weniger zu arbeiten.</p>
+                  <p className="text-xs text-gray-500 mt-2">In {exactMilestoneYear > 0 ? exactMilestoneYear : 0} Jahren kann dein Depot die fehlenden <b>{finanziellesZielErsparnis}h</b> zur Vollzeit komplett finanzieren.</p>
                 </div>
               </div>
 
-              <SavingsMatrix startKapital={startKapital} sparrate={sparrate} ansparRendite={ansparRendite} entnahmeRendite={entnahmeRendite} jahreslohn={jahreslohn} aktuelleStunden={aktuelleStunden} wochen={wochen} steuern={steuern} />
+              <SavingsMatrix startKapital={startKapital} nettoSparrate={nettoSparrate} ansparRendite={ansparRendite} entnahmeRendite={entnahmeRendite} jahreslohn={jahreslohn} aktuelleStunden={aktuelleStunden} wochen={wochen} steuern={steuern} />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700/50">
@@ -526,7 +561,7 @@
                 </div>
                 <div className="bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700/50">
                   <h3 className="text-lg font-bold text-white mb-2">Der Schneeballeffekt: Jede Woche kaufst du dir mehr Zeit</h3>
-                  <p className="text-sm text-gray-400 mb-4">Dieses Diagramm zeigt dir, wie viele Minuten/Sekunden du dir <b>pro Woche</b> freikaufst, bedingt durch den wöchentlichen Zuwachs (Sparrate + Zinseszins).</p>
+                  <p className="text-sm text-gray-400 mb-4">Dieses Diagramm zeigt dir, wie viele Minuten/Sekunden du dir <b>pro Woche</b> freikaufst, bedingt durch den wöchentlichen Zuwachs (Netto-Sparrate + Zinseszins).</p>
                   <div className="h-64 w-full relative"><BoostChart data={chartData} /></div>
                 </div>
               </div>
